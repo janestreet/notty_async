@@ -20,7 +20,6 @@ module Model : sig
   val set_dim          : t -> Pos.t -> t
   val render           : t -> Notty.image
   val toggle_mark      : t -> t
-  val cursor           : t -> Pos.t
   val set_cursor       : t -> Pos.t -> t
   val set_hover        : t -> Pos.t -> t
   val choose_new_color : t -> t
