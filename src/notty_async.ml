@@ -57,7 +57,7 @@ module Term = struct
     in
     (* Some error handling to make sure that we call revert if the pipe fails *)
     let monitor = Monitor.create ~here:[%here] ~name:"Notty input pipe" () in
-    don't_wait_for (Deferred.ignore (Monitor.get_next_error monitor) >>| revert);
+    don't_wait_for (Deferred.ignore_m (Monitor.get_next_error monitor) >>| revert);
     don't_wait_for (Scheduler.within' ~monitor loop);
     don't_wait_for (Pipe.closed r >>| revert);
     r
