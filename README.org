@@ -1,5 +1,4 @@
 #+TITLE: An Async driver for notty
-#+UUID: 6821eeb8-803b-30ed-e85e-d84a628ef21b
 
 An [[https://github.com/janestreet/async][Async]] driver for the [[https://github.com/pqwy/notty][Notty]] terminal graphics library. This is
 modeled after the Lwt driver included in the Notty package.  It comes
