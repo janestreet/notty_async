@@ -148,4 +148,4 @@ let command =
      let%map_open () = return () in
      fun () -> run ())
 
-let () = Command.run command
+let () = Command_unix.run command
