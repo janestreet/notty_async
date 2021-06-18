@@ -1,3 +1,3 @@
 (executables (names main)
- (libraries async core.command_unix core notty notty_async)
+ (libraries async core.command_unix core_kernel.core notty notty_async)
  (preprocess (pps ppx_jane)))
