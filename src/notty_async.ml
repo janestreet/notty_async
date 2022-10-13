@@ -161,8 +161,9 @@ include Notty_unix.Private.Gen_output (struct
     | `Already_closed | `Error _ -> raise_s [%message "Couldn't obtain FD"]
     | `Ok x -> x
 
-  let write (lazy w) buf =
+  let write (((lazy w)) ) buf =
     let bytes = Buffer.contents_bytes buf in
     Writer.write_bytes w bytes ~pos:0 ~len:(Bytes.length bytes);
     Writer.flushed w
+  [@@ocaml.warning  "-68"]
 end)
