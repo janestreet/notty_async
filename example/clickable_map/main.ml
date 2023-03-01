@@ -146,6 +146,6 @@ let command =
   Command.async ~summary:"Test of Notty_async"
     (let open Command.Let_syntax in
      let%map_open () = return () in
-     fun () -> run ())
+     fun () -> run ()) ~behave_nicely_in_pipeline:(false)
 
 let () = Command_unix.run command
