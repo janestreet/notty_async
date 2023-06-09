@@ -15,7 +15,7 @@ module Winch_listener = struct
 
   let setup_winch = lazy (
     Signal.handle [sigwinch] ~f:(fun (_:Signal.t) ->
-        List.iter !waiting ~f:(fun i -> Ivar.fill i ());
+        List.iter !waiting ~f:(fun i -> Ivar.fill_exn i ());
         waiting := []))
 
   let winch () =
