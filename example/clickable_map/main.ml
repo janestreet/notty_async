@@ -30,7 +30,7 @@ end = struct
     ; mark_color : Notty.A.color
     ; cursor : Pos.t
     ; hover : Pos.t option
-    } [@@deriving fields]
+    } 
 
   open Notty
   open Notty.Infix
