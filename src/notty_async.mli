@@ -26,6 +26,5 @@ module Term : sig
   (** This pipe will automatically be shut down once [release] is
      called, and closing this pipe will asynchronous trigger [release]
      to be called. *)
-  val events :
-    t -> [ Notty.Unescape.event | `Resize of (int * int) ] Pipe.Reader.t
+  val events : t -> [ Notty.Unescape.event | `Resize of int * int ] Pipe.Reader.t
 end
