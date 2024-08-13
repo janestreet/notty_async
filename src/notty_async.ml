@@ -181,22 +181,22 @@ module Term = struct
 end
 
 include Notty_unix.Private.Gen_output (struct
-  type fd = Writer.t lazy_t
-  and k = unit Deferred.t
+    type fd = Writer.t lazy_t
+    and k = unit Deferred.t
 
-  let def = Writer.stdout
+    let def = Writer.stdout
 
-  let to_fd w =
-    match Fd.with_file_descr (Writer.fd (force w)) Fn.id with
-    | `Already_closed | `Error _ -> raise_s [%message "Couldn't obtain FD"]
-    | `Ok x -> x
-  ;;
+    let to_fd w =
+      match Fd.with_file_descr (Writer.fd (force w)) Fn.id with
+      | `Already_closed | `Error _ -> raise_s [%message "Couldn't obtain FD"]
+      | `Ok x -> x
+    ;;
 
-  let write fd =
-    let (lazy w) = fd in
-    fun buf ->
-      let bytes = Buffer.contents_bytes buf in
-      Writer.write_bytes w bytes ~pos:0 ~len:(Bytes.length bytes);
-      Writer.flushed w
-  ;;
-end)
+    let write fd =
+      let (lazy w) = fd in
+      fun buf ->
+        let bytes = Buffer.contents_bytes buf in
+        Writer.write_bytes w bytes ~pos:0 ~len:(Bytes.length bytes);
+        Writer.flushed w
+    ;;
+  end)
