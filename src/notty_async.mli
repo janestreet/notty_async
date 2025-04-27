@@ -19,12 +19,10 @@ module Term : sig
   val cursor : t -> (int * int) option -> unit Deferred.t
   val size : t -> int * int
 
-  (** Release the terminal, restoring it to a state where ordinary I/O
-     can be performed. *)
+  (** Release the terminal, restoring it to a state where ordinary I/O can be performed. *)
   val release : t -> unit Deferred.t
 
-  (** This pipe will automatically be shut down once [release] is
-     called, and closing this pipe will asynchronous trigger [release]
-     to be called. *)
+  (** This pipe will automatically be shut down once [release] is called, and closing this
+      pipe will asynchronous trigger [release] to be called. *)
   val events : t -> [ Notty.Unescape.event | `Resize of int * int ] Pipe.Reader.t
 end
