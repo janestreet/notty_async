@@ -29,6 +29,27 @@ module Winch_listener = struct
   ;;
 end
 
+module Terminal_info = struct
+  type t =
+    { capabilities : Core_unix.File_descr.t -> Notty.Cap.t
+    ; dimensions : Core_unix.File_descr.t -> (int * int) option
+    ; wait_for_next_window_change : unit -> unit Deferred.t
+    ; is_a_tty : Fd.t -> bool Deferred.t
+    }
+
+  let create ~capabilities ~dimensions ~wait_for_next_window_change ~is_a_tty =
+    { capabilities; dimensions; wait_for_next_window_change; is_a_tty }
+  ;;
+
+  let real =
+    create
+      ~capabilities:Notty_unix.Private.cap_for_fd
+      ~dimensions:Notty_unix.winsize
+      ~wait_for_next_window_change:Winch_listener.winch
+      ~is_a_tty:Unix.isatty
+  ;;
+end
+
 module Term = struct
   let bsize = 1024
 
@@ -58,7 +79,10 @@ module Term = struct
            write *)
         let%bind () = Pipe.pushback w in
         (match%bind Reader.read reader ibuf with
-         | `Eof -> return ()
+         | `Eof ->
+           (* When stdin reaches `Eof, we also close the [events] pipe. *)
+           Pipe.close w;
+           return ()
          | `Ok n ->
            Unescape.input flt ibuf 0 n;
            loop ())
@@ -104,6 +128,7 @@ module Term = struct
 
   let set_size t dim = Tmachine.set_size t.tmachine dim
   let size t = Tmachine.size t.tmachine
+  let dead t = Tmachine.dead t.tmachine
 
   let release t =
     if Tmachine.release t.tmachine
@@ -113,17 +138,23 @@ module Term = struct
     else return ()
   ;;
 
-  let resize_pipe_and_update_tmachine tmachine writer =
+  let resize_pipe_and_update_tmachine
+    ~is_a_tty
+    ~terminal_dimensions
+    ~wait_for_next_window_change
+    tmachine
+    writer
+    =
     let r, w = Pipe.create () in
     don't_wait_for
-      (match%bind Unix.isatty (Writer.fd writer) with
+      (match%bind is_a_tty (Writer.fd writer) with
        | false ->
          Pipe.close w;
          return ()
        | true ->
          let rec loop () =
-           let%bind () = Winch_listener.winch () in
-           match Fd.with_file_descr (Writer.fd writer) Notty_unix.winsize with
+           let%bind () = wait_for_next_window_change () in
+           match Fd.with_file_descr (Writer.fd writer) terminal_dimensions with
            | `Already_closed | `Error _ -> return ()
            | `Ok size ->
              (match size with
@@ -154,16 +185,28 @@ module Term = struct
     ?(bpaste = true)
     ?(reader = force Reader.stdin)
     ?(writer = force Writer.stdout)
+    ?(for_mocking = Terminal_info.real)
     ()
     =
+    let { Terminal_info.capabilities; dimensions; is_a_tty; wait_for_next_window_change } =
+      for_mocking
+    in
     let cap, size =
-      Fd.with_file_descr_exn (Writer.fd writer) (fun fd ->
-        Notty_unix.Private.cap_for_fd fd, Notty_unix.winsize fd)
+      Fd.with_file_descr_exn (Writer.fd writer) (fun fd -> capabilities fd, dimensions fd)
     in
     let tmachine = Tmachine.create ~mouse ~bpaste cap in
     let input_pipe = input_pipe ~nosig reader in
-    let resize_pipe = resize_pipe_and_update_tmachine tmachine writer in
-    let events = Pipe.interleave [ input_pipe; resize_pipe ] in
+    let resize_pipe =
+      resize_pipe_and_update_tmachine
+        ~is_a_tty
+        ~terminal_dimensions:dimensions
+        ~wait_for_next_window_change
+        tmachine
+        writer
+    in
+    let events =
+      Pipe.interleave ~close_on:`Any_input_closed [ input_pipe; resize_pipe ]
+    in
     let stop () = Pipe.close_read events in
     let buf = Buffer.create 4096 in
     let fds = Reader.fd reader, Writer.fd writer in
@@ -200,3 +243,5 @@ include Notty_unix.Private.Gen_output (struct
         Writer.flushed w
     ;;
   end)
+
+module For_mocking = Terminal_info

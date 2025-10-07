@@ -122,7 +122,11 @@ let run () =
        | _ -> ()));
   Clock.every' (sec 0.05) ~stop (fun () ->
     let%bind () = Term.image term (Model.render !m) in
-    Term.cursor term (Some !m.cursor));
+    let cursor =
+      let x, y = !m.cursor in
+      x, y, `Bar
+    in
+    Term.cursor term (Some cursor));
   stop
 ;;
 
