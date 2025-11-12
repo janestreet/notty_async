@@ -1,6 +1,6 @@
 (library
  (name notty_async)
  (public_name notty_async)
- (libraries async notty notty.unix unix core_unix)
+ (libraries async core_unix notty-community notty-community.unix unix)
  (preprocess
   (pps ppx_jane)))

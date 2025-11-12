@@ -64,35 +64,38 @@ module Term = struct
     let ibuf = Bytes.create bsize in
     let r, w = Pipe.create () in
     let rec loop () =
-      match Unescape.next flt with
-      | #Unescape.event as r ->
-        (* As long as there are events to read without blocking, dump
+      match Pipe.is_closed w with
+      | true -> return ()
+      | false ->
+        (match Unescape.next flt with
+         | #Unescape.event as r ->
+           (* As long as there are events to read without blocking, dump
            them all into the pipe. *)
-        if Pipe.is_closed w
-        then return ()
-        else (
-          Pipe.write_without_pushback w r;
-          loop ())
-      | `End -> return ()
-      | `Await ->
-        (* Don't bother issuing a new read until the pipe has space to
+           if Pipe.is_closed w
+           then return ()
+           else (
+             Pipe.write_without_pushback w r;
+             loop ())
+         | `End -> return ()
+         | `Await ->
+           (* Don't bother issuing a new read until the pipe has space to
            write *)
-        let%bind () = Pipe.pushback w in
-        (match%bind Reader.read reader ibuf with
-         | `Eof ->
-           (* When stdin reaches `Eof, we also close the [events] pipe. *)
-           Pipe.close w;
-           return ()
-         | `Ok n ->
-           Unescape.input flt ibuf 0 n;
-           loop ())
+           let%bind () = Pipe.pushback w in
+           (match%bind Reader.read reader ibuf with
+            | `Eof ->
+              (* When stdin reaches `Eof, we also close the [events] pipe. *)
+              Pipe.close w;
+              return ()
+            | `Ok n ->
+              Unescape.input flt ibuf 0 n;
+              loop ()))
     in
     (* Some error handling to make sure that we call revert if the pipe fails *)
     let monitor = Monitor.create ~here:[%here] ~name:"Notty input pipe" () in
     don't_wait_for (Deferred.ignore_m (Monitor.get_next_error monitor) >>| revert);
     don't_wait_for (Scheduler.within' ~monitor loop);
     don't_wait_for (Pipe.closed r >>| revert);
-    r
+    `Input_pipe r, `On_stop (fun () -> Pipe.close w)
   ;;
 
   type t =
@@ -101,7 +104,7 @@ module Term = struct
     ; buf : Buffer.t
     ; fds : Fd.t * Fd.t
     ; events : [ Unescape.event | `Resize of int * int ] Pipe.Reader.t
-    ; stop : unit -> unit
+    ; stop : unit -> unit Deferred.t
     }
 
   let write t =
@@ -133,8 +136,8 @@ module Term = struct
   let release t =
     if Tmachine.release t.tmachine
     then (
-      t.stop ();
-      write t)
+      let%bind () = write t in
+      t.stop ())
     else return ()
   ;;
 
@@ -178,6 +181,28 @@ module Term = struct
     r
   ;;
 
+  let duplicate_reader reader =
+    (* NOTE: We duplicate the file descriptor, instead of using directly calling
+       [Reader.read] on the stdin file descriptor directly. 
+
+       Why? To gracefully handle a situation where the bonsai term app stops while
+       a [Reader.read] call is going on. We use [Reader.close] to "cancel" any pending
+       [Reader.read] calls. Using the stdin reader directly would mean that re-using the
+       stdin reader (e.g. when multiple bonsai apps run within the same process) would not
+       be possible.
+
+       For more info run [man dup].
+    *)
+    let fd = Reader.fd reader in
+    let fd =
+      Fd.create
+        Fifo
+        (Fd.syscall_exn fd Core_unix.dup)
+        (Info.of_string "notty async stdin")
+    in
+    Reader.create fd
+  ;;
+
   let create
     ?(dispose = true)
     ?(nosig = true)
@@ -188,6 +213,7 @@ module Term = struct
     ?(for_mocking = Terminal_info.real)
     ()
     =
+    let reader = duplicate_reader reader in
     let { Terminal_info.capabilities; dimensions; is_a_tty; wait_for_next_window_change } =
       for_mocking
     in
@@ -195,7 +221,7 @@ module Term = struct
       Fd.with_file_descr_exn (Writer.fd writer) (fun fd -> capabilities fd, dimensions fd)
     in
     let tmachine = Tmachine.create ~mouse ~bpaste cap in
-    let input_pipe = input_pipe ~nosig reader in
+    let `Input_pipe input_pipe, `On_stop close_input_pipe = input_pipe ~nosig reader in
     let resize_pipe =
       resize_pipe_and_update_tmachine
         ~is_a_tty
@@ -207,7 +233,12 @@ module Term = struct
     let events =
       Pipe.interleave ~close_on:`Any_input_closed [ input_pipe; resize_pipe ]
     in
-    let stop () = Pipe.close_read events in
+    let stop () =
+      let%bind () = Reader.close reader in
+      Pipe.close_read events;
+      close_input_pipe ();
+      return ()
+    in
     let buf = Buffer.create 4096 in
     let fds = Reader.fd reader, Writer.fd writer in
     let t = { tmachine; writer; events; stop; buf; fds } in

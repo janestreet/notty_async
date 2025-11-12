@@ -14,8 +14,8 @@ depends: [
   "async"
   "core_unix"
   "ppx_jane"
-  "dune"      {>= "3.17.0"}
-  "notty"     {>= "0.2.1"}
+  "dune"            {>= "3.17.0"}
+  "notty-community" {= "0.2.4+ox"}
 ]
 available: arch != "arm32" & arch != "x86_32"
 synopsis: "An Async driver for Notty"

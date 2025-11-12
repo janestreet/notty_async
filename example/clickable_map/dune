@@ -1,6 +1,6 @@
 (executables
  (modes byte exe)
  (names main)
- (libraries async core_unix.command_unix core notty notty_async)
+ (libraries async core_unix.command_unix core notty-community notty_async)
  (preprocess
   (pps ppx_jane)))
