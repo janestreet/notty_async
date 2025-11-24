@@ -33,7 +33,18 @@ module Term : sig
 
   val refresh : t -> unit Deferred.t
   val image : t -> Notty.image -> unit Deferred.t
-  val cursor : t -> (int * int) option -> unit Deferred.t
+
+  type cursor :=
+    [ `Default
+    | `Bar
+    | `Bar_blinking
+    | `Block
+    | `Block_blinking
+    | `Underline
+    | `Underline_blinking
+    ]
+
+  val cursor : t -> (int * int * cursor) option -> unit Deferred.t
   val size : t -> int * int
 
   (** Release the terminal, restoring it to a state where ordinary I/O can be performed. *)
