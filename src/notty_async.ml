@@ -53,8 +53,7 @@ end
 module Term = struct
   let bsize = 1024
 
-  (* Call [f] function repeatedly as input is received from the
-     stream. *)
+  (* Call [f] function repeatedly as input is received from the stream. *)
   let input_pipe ~nosig reader =
     let (`Revert revert) =
       let fd = Unix.Fd.file_descr_exn (Reader.fd reader) in
@@ -69,8 +68,8 @@ module Term = struct
       | false ->
         (match Unescape.next flt with
          | #Unescape.event as r ->
-           (* As long as there are events to read without blocking, dump
-           them all into the pipe. *)
+           (* As long as there are events to read without blocking, dump them all into the
+              pipe. *)
            if Pipe.is_closed w
            then return ()
            else (
@@ -78,8 +77,7 @@ module Term = struct
              loop ())
          | `End -> return ()
          | `Await ->
-           (* Don't bother issuing a new read until the pipe has space to
-           write *)
+           (* Don't bother issuing a new read until the pipe has space to write *)
            let%bind () = Pipe.pushback w in
            (match%bind Reader.read reader ibuf with
             | `Eof ->
@@ -162,11 +160,10 @@ module Term = struct
            | `Ok size ->
              (match size with
               | None ->
-                (* Note 100% clear that this is the right behavior,
-                 since it's not clear why one would receive None from
-                 winsize at all.  In any case, causing further resizes
-                 should cause an app to recover if there's a temporary
-                 inability to read the size. *)
+                (* Note 100% clear that this is the right behavior, since it's not clear
+                   why one would receive None from winsize at all. In any case, causing
+                   further resizes should cause an app to recover if there's a temporary
+                   inability to read the size. *)
                 loop ()
               | Some size ->
                 if Pipe.is_closed w
@@ -183,10 +180,10 @@ module Term = struct
 
   let duplicate_reader reader =
     (* NOTE: We duplicate the file descriptor, instead of using directly calling
-       [Reader.read] on the stdin file descriptor directly. 
+       [Reader.read] on the stdin file descriptor directly.
 
-       Why? To gracefully handle a situation where the bonsai term app stops while
-       a [Reader.read] call is going on. We use [Reader.close] to "cancel" any pending
+       Why? To gracefully handle a situation where the bonsai term app stops while a
+       [Reader.read] call is going on. We use [Reader.close] to "cancel" any pending
        [Reader.read] calls. Using the stdin reader directly would mean that re-using the
        stdin reader (e.g. when multiple bonsai apps run within the same process) would not
        be possible.
