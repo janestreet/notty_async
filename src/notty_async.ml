@@ -53,8 +53,7 @@ end
 module Term = struct
   let bsize = 1024
 
-  (* Call [f] function repeatedly as input is received from the
-     stream. *)
+  (* Call [f] function repeatedly as input is received from the stream. *)
   let input_pipe ~nosig reader =
     let (`Revert revert) =
       let fd = Unix.Fd.file_descr_exn (Reader.fd reader) in
@@ -126,6 +125,27 @@ module Term = struct
   let cursor t curs =
     Tmachine.cursor t.tmachine curs;
     write t
+  ;;
+
+  let set_title t title =
+    Tmachine.set_title t.tmachine title;
+    write t
+  ;;
+
+  let save_title t =
+    if Tmachine.dead t.tmachine
+    then return ()
+    else (
+      Tmachine.save_title t.tmachine;
+      write t)
+  ;;
+
+  let restore_title t =
+    if Tmachine.dead t.tmachine
+    then return ()
+    else (
+      Tmachine.restore_title t.tmachine;
+      write t)
   ;;
 
   let set_size t dim = Tmachine.set_size t.tmachine dim

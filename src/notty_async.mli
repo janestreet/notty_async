@@ -45,6 +45,9 @@ module Term : sig
     ]
 
   val cursor : t -> (int * int * cursor) option -> unit Deferred.t
+  val set_title : t -> string -> unit Deferred.t
+  val save_title : t -> unit Deferred.t
+  val restore_title : t -> unit Deferred.t
   val size : t -> int * int
 
   (** Release the terminal, restoring it to a state where ordinary I/O can be performed. *)
