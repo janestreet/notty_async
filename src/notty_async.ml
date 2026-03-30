@@ -249,6 +249,7 @@ module Term = struct
   ;;
 
   let events t = t.events
+  let writer t = t.writer
 end
 
 include Notty_unix.Private.Gen_output (struct

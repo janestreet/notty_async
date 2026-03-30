@@ -33,6 +33,7 @@ module Term : sig
 
   val refresh : t -> unit Deferred.t
   val image : t -> Notty.image -> unit Deferred.t
+  val writer : t -> Writer.t
   val cursor : t -> (int * int) option -> unit Deferred.t
   val size : t -> int * int
 
