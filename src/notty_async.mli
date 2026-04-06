@@ -33,6 +33,14 @@ module Term : sig
 
   val refresh : t -> unit Deferred.t
   val image : t -> Notty.image -> unit Deferred.t
+  val writer : t -> Writer.t
+
+  val set_mouse : t -> bool -> unit Deferred.t
+  [@@ocaml.doc
+    {| Dynamically enable/disable mouse reporting.
+
+        When mouse reporting is disabled, terminals typically allow native text selection.
+        When enabled, the terminal will send mouse events on stdin (e.g. for clicks). |}]
 
   type cursor :=
     [ `Default

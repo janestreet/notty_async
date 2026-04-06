@@ -127,6 +127,14 @@ module Term = struct
     write t
   ;;
 
+  let set_mouse t enabled =
+    if Tmachine.dead t.tmachine
+    then return ()
+    else (
+      Tmachine.set_mouse t.tmachine enabled;
+      write t)
+  ;;
+
   let set_title t title =
     Tmachine.set_title t.tmachine title;
     write t
@@ -270,6 +278,7 @@ module Term = struct
   ;;
 
   let events t = t.events
+  let writer t = t.writer
 end
 
 include Notty_unix.Private.Gen_output (struct
