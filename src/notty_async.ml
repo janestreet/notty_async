@@ -79,14 +79,41 @@ module Term = struct
          | `Await ->
            (* Don't bother issuing a new read until the pipe has space to write *)
            let%bind () = Pipe.pushback w in
-           (match%bind Reader.read reader ibuf with
-            | `Eof ->
-              (* When stdin reaches `Eof, we also close the [events] pipe. *)
-              Pipe.close w;
-              return ()
-            | `Ok n ->
-              Unescape.input flt ibuf 0 n;
-              loop ()))
+           (* Only gate on [Fd.ready_to] when Reader's internal buffer is empty. The
+              [Fd.ready_to] guard is important for [Char]-kind fds (e.g. TTYs): without
+              it, [Reader.read] goes through a blocking [In_thread.syscall] that cannot be
+              interrupted by [Fd.close]. By waiting on [Fd.ready_to] first, we ensure the
+              loop can be cleanly interrupted during shutdown — [Fd.close] causes
+              [Fd.ready_to] to return [`Closed].
+
+              However, we must skip this guard when Reader already has data in its
+              internal buffer. [Reader.read] returns immediately from that buffer without
+              a syscall, so the guard is unnecessary — and sometimes results in hanging /
+              stranded bytes, because the kernel fd may have no data even though Reader
+              has bytes buffered internally (e.g. after a large paste that exceeds
+              [bsize]). *)
+           let fd = Reader.fd reader in
+           let%bind should_continue =
+             match Reader.bytes_available reader > 0 with
+             | true -> return true
+             | false ->
+               (match%bind Fd.ready_to fd `Read with
+                | `Bad_fd | `Closed ->
+                  Pipe.close w;
+                  return false
+                | `Ready -> return true)
+           in
+           (match should_continue with
+            | false -> return ()
+            | true ->
+              (match%bind Reader.read reader ibuf with
+               | `Eof ->
+                 (* When stdin reaches `Eof, we also close the [events] pipe. *)
+                 Pipe.close w;
+                 return ()
+               | `Ok n ->
+                 Unescape.input flt ibuf 0 n;
+                 loop ())))
     in
     (* Some error handling to make sure that we call revert if the pipe fails *)
     let monitor = Monitor.create ~here:[%here] ~name:"Notty input pipe" () in
@@ -190,17 +217,14 @@ module Term = struct
 
        For more info run [man dup].
     *)
-    let fd = Reader.fd reader in
-    let fd =
-      Fd.create
-        Fifo
-        (Fd.syscall_exn fd Core_unix.dup)
-        (Info.of_string "notty async stdin")
-    in
-    Reader.create fd
+    let original_fd = Reader.fd reader in
+    let dup_file_descr = Fd.syscall_exn original_fd Core_unix.dup in
+    let%map kind = Fd.Kind.infer_using_stat dup_file_descr in
+    let dup_fd = Fd.create kind dup_file_descr (Info.of_string "notty async stdin") in
+    Reader.create dup_fd
   ;;
 
-  let create
+  let create_impl
     ?(dispose = true)
     ?(nosig = true)
     ?(mouse = true)
@@ -208,16 +232,17 @@ module Term = struct
     ?(reader = force Reader.stdin)
     ?(writer = force Writer.stdout)
     ?(for_mocking = Terminal_info.real)
+    ~create_tmachine
     ()
     =
-    let reader = duplicate_reader reader in
+    let%bind reader = duplicate_reader reader in
     let { Terminal_info.capabilities; dimensions; is_a_tty; wait_for_next_window_change } =
       for_mocking
     in
     let cap, size =
       Fd.with_file_descr_exn (Writer.fd writer) (fun fd -> capabilities fd, dimensions fd)
     in
-    let tmachine = Tmachine.create ~mouse ~bpaste cap in
+    let tmachine = create_tmachine ~mouse ~bpaste cap in
     let `Input_pipe input_pipe, `On_stop close_input_pipe = input_pipe ~nosig reader in
     let resize_pipe =
       resize_pipe_and_update_tmachine
@@ -246,6 +271,19 @@ module Term = struct
        release t);
     let%map () = write t in
     t
+  ;;
+
+  let create ?dispose ?nosig ?mouse ?bpaste ?reader ?writer ?for_mocking () =
+    create_impl
+      ?dispose
+      ?nosig
+      ?mouse
+      ?bpaste
+      ?reader
+      ?writer
+      ?for_mocking
+      ~create_tmachine:(fun ~mouse ~bpaste cap -> Tmachine.create ~mouse ~bpaste cap)
+      ()
   ;;
 
   let events t = t.events

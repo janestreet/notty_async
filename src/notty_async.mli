@@ -23,11 +23,9 @@ module Term : sig
     -> ?nosig:bool
     -> ?mouse:bool
     -> ?bpaste:bool
-    -> ?reader:Reader.t (** stdin by default *)
-    -> ?writer:Writer.t (** stdout by default *)
-    -> ?for_mocking:
-         For_mocking.t
-         (* Mocks terminal dimensions and tty capabilties for testing purposes. *)
+    -> ?reader:(Reader.t[@ocaml.doc {| stdin by default |}])
+    -> ?writer:(Writer.t[@ocaml.doc {| stdout by default |}])
+    -> ?for_mocking:For_mocking.t
     -> unit
     -> t Deferred.t
 
