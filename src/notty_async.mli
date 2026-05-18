@@ -23,11 +23,9 @@ module Term : sig
     -> ?nosig:bool
     -> ?mouse:bool
     -> ?bpaste:bool
-    -> ?reader:Reader.t (** stdin by default *)
-    -> ?writer:Writer.t (** stdout by default *)
-    -> ?for_mocking:
-         For_mocking.t
-         (* Mocks terminal dimensions and tty capabilties for testing purposes. *)
+    -> ?reader:(Reader.t[@ocaml.doc {| stdin by default |}])
+    -> ?writer:(Writer.t[@ocaml.doc {| stdout by default |}])
+    -> ?for_mocking:For_mocking.t
     -> unit
     -> t Deferred.t
 
@@ -41,6 +39,14 @@ module Term : sig
 
         When mouse reporting is disabled, terminals typically allow native text selection.
         When enabled, the terminal will send mouse events on stdin (e.g. for clicks). |}]
+
+  val set_hover : t -> bool -> unit Deferred.t
+  [@@ocaml.doc
+    {| Dynamically enable/disable {e any-event} mouse reporting.
+
+        When enabled, the terminal reports mouse motion without any button pressed as
+        [`Hover] events, as long as ordinary mouse reporting is also enabled. Disabling
+        hover does not disable ordinary mouse events. |}]
 
   type cursor :=
     [ `Default
