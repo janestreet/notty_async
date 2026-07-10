@@ -51,7 +51,7 @@ module Terminal_info = struct
 end
 
 module Term = struct
-  let bsize = 1024
+  let bsize = 1048576 (* 2 ** 20 *)
 
   (* Call [f] function repeatedly as input is received from the stream. *)
   let input_pipe ~nosig reader =
