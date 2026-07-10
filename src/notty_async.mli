@@ -22,6 +22,13 @@ module Term : sig
     :  ?dispose:bool
     -> ?nosig:bool
     -> ?mouse:bool
+    -> ?hover:
+         (bool
+         [@ocaml.doc
+           {| When [true] and [~mouse] is also enabled, enables {e any-event} mouse
+               reporting (xterm mode 1003) so that mouse motion without any button pressed
+               is reported as [`Hover] events. Defaults to [false] because it can generate
+               a large volume of input events. |}])
     -> ?bpaste:bool
     -> ?reader:(Reader.t[@ocaml.doc {| stdin by default |}])
     -> ?writer:(Writer.t[@ocaml.doc {| stdout by default |}])

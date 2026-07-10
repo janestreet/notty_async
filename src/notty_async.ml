@@ -51,7 +51,7 @@ module Terminal_info = struct
 end
 
 module Term = struct
-  let bsize = 1024
+  let bsize = 1048576 (* 2 ** 20 *)
 
   (* Call [f] function repeatedly as input is received from the stream. *)
   let input_pipe ~nosig reader =
@@ -310,7 +310,17 @@ module Term = struct
     t
   ;;
 
-  let create ?dispose ?nosig ?mouse ?bpaste ?reader ?writer ?for_mocking () =
+  let create
+    ?dispose
+    ?nosig
+    ?mouse
+    ?(hover = false)
+    ?bpaste
+    ?reader
+    ?writer
+    ?for_mocking
+    ()
+    =
     create_impl
       ?dispose
       ?nosig
@@ -319,7 +329,8 @@ module Term = struct
       ?reader
       ?writer
       ?for_mocking
-      ~create_tmachine:(fun ~mouse ~bpaste cap -> Tmachine.create ~mouse ~bpaste cap)
+      ~create_tmachine:(fun ~mouse ~bpaste cap ->
+        Tmachine.create ~mouse ~hover ~bpaste cap)
       ()
   ;;
 

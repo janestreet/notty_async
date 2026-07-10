@@ -16,9 +16,12 @@ depends: [
   "core_unix"
   "ppx_jane"
   "dune"            {>= "3.17.0"}
-  "notty-community" {= "0.2.4+ox"}
+  "notty-community" {>= "0.2.4"}
 ]
 available: arch != "x86_32"
+conflicts: [
+  "oxcaml-compiler" {< "5.2.0minus39"}
+]
 synopsis: "An Async driver for Notty"
 description: "
 Notty is a library for writing graphical terminal applications, and Notty_async
